@@ -1,5 +1,6 @@
 plugins {
     id("buildlogic.kotlin-library-conventions")
+    kotlin("plugin.serialization")
 }
 
 mavenPublishing {
@@ -17,6 +18,7 @@ kotlin {
                 api(project(":csaf-validation"))
                 api(libs.ktor.client.core)
                 implementation(libs.ktor.client.content.negotiation)
+                implementation(libs.ktor.client.auth)
                 implementation(libs.ktor.kotlinx.json)
                 implementation(libs.kotlinx.coroutines)
                 implementation(libs.kotlinx.json)

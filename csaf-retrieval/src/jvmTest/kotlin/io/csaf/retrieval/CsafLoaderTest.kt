@@ -108,6 +108,21 @@ class CsafLoaderTest {
     }
 
     @Test
+    fun testWithSettingsOAuthCredentials() {
+        assertNotNull(
+            CsafLoader.withSettings(
+                maxRetries = 1,
+                retryBase = 3.0,
+                retryBaseDelayMs = 5000,
+                retryMaxDelayMs = 100000,
+                engine = mockEngine(),
+                clientId = "fake",
+                clientSecret = "fake",
+            )
+        )
+    }
+
+    @Test
     fun testFetchAggregator() = runTest {
         val result = loader.fetchAggregator("https://example.com/example-01-aggregator.json")
         assertTrue(
@@ -217,5 +232,29 @@ class CsafLoaderTest {
                 assertSame(HttpStatusCode.TooManyRequests, it.status)
             }
         assertFalse { result.isSuccess }
+    }
+
+    @Test
+    fun testOAUthWorks() = runTest {
+        val loader = CsafLoader.fromClient(httpClientOAuth())
+
+        val result =
+            loader.fetchText(
+                "https://velma-external-api.nct.k8s.int.dc2.arp.ncsc.nl/v1/vulnerabilities/paginated"
+            )
+
+        assertTrue { result.isSuccess }
+    }
+
+    @Test
+    fun testLazyOverride() = runTest {
+        val viaStatic = CsafLoader.fromClient(httpClientOAuth())
+        val viaLazy = CsafLoader.lazyLoader
+
+        assertEquals<CsafLoader>(
+            viaStatic,
+            viaLazy,
+            "Lazy loader did not return instance created by fromClient",
+        )
     }
 }
