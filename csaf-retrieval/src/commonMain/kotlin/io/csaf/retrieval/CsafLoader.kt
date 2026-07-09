@@ -41,8 +41,8 @@ expect fun defaultHttpClientEngine(): HttpClientEngine
  *
  * @param engine The HTTP engine to use. Defaults to [defaultHttpClientEngine].
  * @param maxRetries The number of times that HTTP requests are retried on errors.
- * @param retryBase The exponent for exponential delay.
- * @param retryBaseDelayMs Base delay in ms.
+ * @param retryBase @param retryBase The base for exponential delay. (base^(currentTry-1)*baseDelay)
+ * @param retryBaseDelayMs Exponential delay factor in ms. (base^(currentTry-1)*baseDelay)
  * @param retryMaxDelayMs Max delay in ms.
  * @return Configured [HttpClient].
  */
@@ -208,32 +208,14 @@ constructor(engine: HttpClientEngine? = null, client: HttpClient? = null) {
 
     companion object {
         @JvmStatic val lazyLoader: CsafLoader by lazy { defaultLoaderFactory() }
-        internal var instance: CsafLoader? = null
-        internal var defaultLoaderFactory: (() -> CsafLoader) = {
-            if (instance == null) instance = CsafLoader()
-            instance!!
-        }
-
-        /**
-         * Set the instance value if not already set
-         *
-         * @param inst [CsafLoader] new value to set
-         */
-        @JvmStatic
-        fun setInstance(inst: CsafLoader): CsafLoader {
-            instance = inst
-            return instance!!
-        }
+        internal var defaultLoaderFactory: (() -> CsafLoader) = { CsafLoader() }
 
         /**
          * Initialize a [CsafLoader] with the provided [HttpClient].
          *
          * @param client [HttpClient] used for preforming requests.
          */
-        @JvmStatic
-        fun fromClient(client: HttpClient): CsafLoader {
-            return setInstance(CsafLoader(client = client))
-        }
+        @JvmStatic fun fromClient(client: HttpClient): CsafLoader = CsafLoader(client = client)
 
         /**
          * Initialize a [CsafLoader] with the provided [HttpClientEngine].
@@ -241,16 +223,14 @@ constructor(engine: HttpClientEngine? = null, client: HttpClient? = null) {
          * @param engine [HttpClientEngine] passed to default [HttpClient].
          */
         @JvmStatic
-        fun fromEngine(engine: HttpClientEngine): CsafLoader {
-            return setInstance(CsafLoader(engine = engine))
-        }
+        fun fromEngine(engine: HttpClientEngine): CsafLoader = CsafLoader(engine = engine)
 
         /**
          * Initialize a [CsafLoader] with the provided settings.
          *
          * @param maxRetries The number of times that HTTP requests are retried on errors.
-         * @param retryBase The exponent for exponential delay.
-         * @param retryBaseDelayMs Base delay in ms.
+         * @param retryBase The base for exponential delay. (base^(currentTry-1))
+         * @param retryBaseDelayMs Exponential delay factor in ms.
          * @param retryMaxDelayMs Max delay in ms.
          * @param engine The HTTP engine to use. Defaults to [defaultHttpClientEngine].
          * @param clientId Optional. ID to use for Oauth.
@@ -272,7 +252,7 @@ constructor(engine: HttpClientEngine? = null, client: HttpClient? = null) {
             scope: String = "openid",
         ): CsafLoader {
             var client: HttpClient
-            if (clientId.length > 0 && clientSecret.length > 0 && tokenUrl.length > 0) {
+            if (clientId.isNotBlank() && clientSecret.isNotBlank() && tokenUrl.isNotBlank()) {
                 client =
                     httpClientOAuth(
                         engine = engine,
@@ -282,6 +262,7 @@ constructor(engine: HttpClientEngine? = null, client: HttpClient? = null) {
                         retryMaxDelayMs = retryMaxDelayMs,
                         clientId = clientId,
                         clientSecret = clientSecret,
+                        tokenUrl = tokenUrl,
                     )
             } else {
                 client =
@@ -293,7 +274,7 @@ constructor(engine: HttpClientEngine? = null, client: HttpClient? = null) {
                         retryMaxDelayMs = retryMaxDelayMs,
                     )
             }
-            return setInstance(CsafLoader(client = client))
+            return CsafLoader(client = client)
         }
     }
 }

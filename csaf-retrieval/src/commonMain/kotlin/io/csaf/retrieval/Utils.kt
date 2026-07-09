@@ -50,6 +50,10 @@ suspend fun <T> Result.Companion.of(supplier: suspend () -> T): Result<T> {
     return try {
         success(supplier())
     } catch (t: Throwable) {
-        failure(t)
+        if (t is AssertionError) {
+            throw t
+        } else {
+            failure(t)
+        }
     }
 }

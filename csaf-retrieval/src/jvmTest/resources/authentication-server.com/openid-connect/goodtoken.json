@@ -1,0 +1,9 @@
+{
+  "access_token": "goodtoken",
+  "expires_in": 10,
+  "refresh_expires_in": 0,
+  "token_type": "fake",
+  "id_token": "none",
+  "not-before-policy": 0,
+  "scope": "openid"
+}

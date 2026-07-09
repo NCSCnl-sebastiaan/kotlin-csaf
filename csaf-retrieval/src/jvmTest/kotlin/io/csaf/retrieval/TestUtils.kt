@@ -30,9 +30,12 @@ fun mockEngine() = MockEngine { request ->
             if (it == "") "index.json" else it
         }
     val response = getResourceUrl(("$host/$file").trimStart('/'))
+    val auth = request.headers.get("Authorization")
 
     if (response == null) {
         respond(content = "Not Found", status = HttpStatusCode.NotFound)
+    } else if (host == "server-with-oauth.com" && auth != "Bearer goodtoken") {
+        respond(content = "Unauthorized", status = HttpStatusCode.Unauthorized)
     } else {
         respond(
             content = response.readText(),

@@ -195,7 +195,7 @@ class CsafLoaderTest {
     fun testFetchInvalidUrl() = runTest {
         val result =
             loader.fetchText("does-not-exist.com/not-available.txt") {
-                assertSame(HttpStatusCode.NotFound, it.status)
+                assertEquals(HttpStatusCode.NotFound, it.status)
             }
         assertFalse { result.isSuccess }
     }
@@ -204,7 +204,7 @@ class CsafLoaderTest {
     fun testFetchROLIEFeed() = runTest {
         val result =
             loader.fetchROLIEFeed("does-not-really-exist.json") {
-                assertSame(HttpStatusCode.NotFound, it.status)
+                assertEquals(HttpStatusCode.NotFound, it.status)
             }
         assertFalse { result.isSuccess }
     }
@@ -214,7 +214,7 @@ class CsafLoaderTest {
         val loader = CsafLoader(tooManyRequestsEngineFactory())
         val result =
             loader.fetchText("does-not-exist.com/too-many-requests.txt") {
-                assertSame(HttpStatusCode.OK, it.status)
+                assertEquals(HttpStatusCode.OK, it.status)
             }
 
         assertTrue { result.isSuccess }
@@ -235,26 +235,71 @@ class CsafLoaderTest {
     }
 
     @Test
-    fun testOAUthWorks() = runTest {
-        val loader = CsafLoader.fromClient(httpClientOAuth())
-
-        val result =
-            loader.fetchText(
-                "https://velma-external-api.nct.k8s.int.dc2.arp.ncsc.nl/v1/vulnerabilities/paginated"
+    fun testOAuthGoodToken() = runTest {
+        val engine = mockEngine()
+        val loader =
+            CsafLoader.withSettings(
+                engine = engine,
+                clientId = "fakeId",
+                clientSecret = "fakeSecret",
+                tokenUrl = "https://authentication-server.com/openid-connect/goodtoken.json",
             )
 
+        loader.clearTokens()
+
+        val result =
+            loader.fetchText("https://server-with-oauth.com/.well-known/security.txt") {
+                assertEquals(HttpStatusCode.OK, it.status)
+            }
+
+        val content = result.getOrThrow()
+
         assertTrue { result.isSuccess }
+        assertEquals("Canonical: server-with-oauth.com/.well-known/security.txt", content)
     }
 
     @Test
-    fun testLazyOverride() = runTest {
-        val viaStatic = CsafLoader.fromClient(httpClientOAuth())
-        val viaLazy = CsafLoader.lazyLoader
+    fun testOAuthBadToken() = runTest {
+        val engine = mockEngine()
+        val loader =
+            CsafLoader.withSettings(
+                engine = engine,
+                clientId = "fakeId",
+                clientSecret = "fakeSecret",
+                tokenUrl = "https://authentication-server.com/openid-connect/badtoken.json",
+            )
 
-        assertEquals<CsafLoader>(
-            viaStatic,
-            viaLazy,
-            "Lazy loader did not return instance created by fromClient",
+        loader.clearTokens()
+
+        val result =
+            loader.fetchText("https://server-with-oauth.com/.well-known/security.txt") {
+                assertEquals(HttpStatusCode.Unauthorized, it.status)
+            }
+
+        assertFalse { result.isSuccess }
+    }
+
+    @Test
+    fun testWeirdExponentialRetrySettings() = runTest {
+        val engine = tooManyRequestsEngineFactory(4)
+        val loader =
+            CsafLoader.withSettings(
+                engine = engine,
+                maxRetries = 5,
+                retryBase = 1000.0,
+                retryBaseDelayMs = 5000,
+                retryMaxDelayMs = 60000,
+            )
+
+        val result = loader.fetchText("does-not-exist.com/too-many-requests.txt")
+
+        println(
+            engine.responseHistory[1].requestTime.timestamp -
+                engine.responseHistory[0].requestTime.timestamp
         )
+
+        assertEquals(2, engine.responseHistory.size)
+
+        assertFalse(true)
     }
 }

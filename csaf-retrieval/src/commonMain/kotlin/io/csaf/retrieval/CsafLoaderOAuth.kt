@@ -110,9 +110,7 @@ fun httpClientOAuth(
                         BearerTokens(it.accessToken, null)
                     }
                 }
-                sendWithoutRequest {
-                    tokenData == null || (tokenData?.expiration?.hasPassedNow() ?: false)
-                }
+                sendWithoutRequest { request -> request.url.toString() != tokenUrl }
             }
         }
 
@@ -137,7 +135,7 @@ fun CsafLoader.enableOAuth(
     clientSecret: String = testClientSecret,
     tokenUrl: String = defaultTokenUrl,
     scope: String = defaultScope,
-) { // Return value?
+) {
     val client =
         this.getHttpClient().config { // DRY?
             install(Auth) {
@@ -173,4 +171,9 @@ fun CsafLoader.enableOAuth(
 
 fun CsafLoader.disableOAuth() {
     this.setHttpClient(defaultHttpClient())
+}
+
+fun CsafLoader.clearTokens() {
+    this.getHttpClient().authProvider<BearerAuthProvider>()?.clearToken()
+    tokenData = null
 }
